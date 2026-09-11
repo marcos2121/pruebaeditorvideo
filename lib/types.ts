@@ -42,6 +42,30 @@ export interface ScriptBeat {
 
 export type Transition = "cut" | "punch" | "whip" | "flash" | "glitch";
 
+export type AssetKind = "image" | "clip";
+
+/** Imagen o clip corto que se inserta como B-roll sobre el video principal. */
+export interface Asset {
+  id: string;
+  kind: AssetKind;
+  name: string;
+  objectUrl: string;
+  size: number;
+  mime: string;
+  width: number;
+  height: number;
+  /** Solo para clips (segundos). Las imágenes tienen 0. */
+  duration: number;
+}
+
+/** Recurso visual que sustituye la imagen del video principal durante un segmento. */
+export interface SegmentOverlay {
+  assetId: string;
+  kind: AssetKind;
+  /** Punto de entrada dentro del clip (segundos). 0 para imágenes. */
+  in: number;
+}
+
 export interface EditSegment {
   id: string;
   srcIn: number;
@@ -54,6 +78,8 @@ export interface EditSegment {
   anchorY: number;
   transition: Transition;
   shake: number;
+  /** Si existe, el segmento muestra este recurso (imagen o clip) en lugar del video principal. El audio sigue siendo el del video principal. */
+  overlay?: SegmentOverlay;
 }
 
 export interface TimedBeat extends ScriptBeat {
@@ -76,6 +102,8 @@ export interface EditPlan {
   grain: boolean;
   removedSilence: number;
   scriptSource: "ai" | "engine";
+  /** Número de inserciones de B-roll (imágenes + clips). */
+  brollCount: number;
 }
 
 export interface AudioAnalysis {

@@ -4,7 +4,9 @@ import { useStudio } from "@/lib/store";
 import { VISUAL_PRESETS } from "@/lib/styles";
 
 export function LookStep() {
-  const { preset, setPreset, setStep, removeSilence, setRemoveSilence, maxDuration, setMaxDuration, source, analysis } = useStudio();
+  const { preset, setPreset, setStep, removeSilence, setRemoveSilence, maxDuration, setMaxDuration, source, analysis, assets, brollMode, setBrollMode } = useStudio();
+  const images = assets.filter((a) => a.kind === "image").length;
+  const clips = assets.length - images;
   const silenceSec = analysis ? analysis.silences.reduce((a, s) => a + Math.max(0, s.end - s.start - 0.24), 0) : 0;
   return (
     <div className="space-y-5">
@@ -36,6 +38,20 @@ export function LookStep() {
           </span>
           <input type="checkbox" checked={removeSilence} onChange={(e) => setRemoveSilence(e.target.checked)} className="h-5 w-5 accent-volt-500" />
         </label>
+        {assets.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-semibold">B-roll</span>
+              <span className="text-xs text-white/50">{images} {images === 1 ? "imagen" : "imágenes"} · {clips} {clips === 1 ? "clip" : "clips"}</span>
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-1.5">
+              {([["once", "Una vez"], ["fill", "Rellenar"], ["off", "Sin B-roll"]] as const).map(([id, label]) => (
+                <button key={id} onClick={() => setBrollMode(id)} className={`rounded-xl border px-2 py-2 text-xs font-semibold transition ${brollMode === id ? "border-volt-500/70 bg-volt-500/10 text-white" : "border-white/10 bg-white/[0.02] text-white/60 hover:border-white/25"}`}>{label}</button>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-white/45">{brollMode === "once" ? "Cada imagen o clip aparece una vez, cerca de los beats de producto." : brollMode === "fill" ? "Repite tus recursos para cubrir cerca del 40 % de los cortes." : "Solo se usa el video principal."}</p>
+          </div>
+        )}
         <div>
           <div className="flex items-center justify-between text-sm">
             <span className="font-semibold">Duración máxima</span>

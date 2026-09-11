@@ -1,5 +1,6 @@
-import type { AudioAnalysis, EditPlan, EditSegment, ScriptBeat, ScriptStyleId, TimedBeat, Transition, VisualPresetId } from "../types";
+import type { Asset, AudioAnalysis, EditPlan, EditSegment, ScriptBeat, ScriptStyleId, TimedBeat, Transition, VisualPresetId } from "../types";
 import { STYLE_BY_ID, PRESET_BY_ID } from "../styles";
+import { applyBroll, type BrollMode } from "./broll";
 
 export interface PlannerInput {
   sourceDuration: number;
@@ -11,6 +12,9 @@ export interface PlannerInput {
   removeSilence?: boolean;
   scriptSource: "ai" | "engine";
   seed?: number;
+  /** Imágenes y clips extra para B-roll. */
+  assets?: Asset[];
+  brollMode?: BrollMode;
 }
 
 function rng(seed: number) {
@@ -74,7 +78,7 @@ export function buildPlan(input: PlannerInput): EditPlan {
 
   const peaks = analysis?.peaks ?? [];
   const [minCut, maxCut] = style.cutRhythm;
-  const segments: EditSegment[] = [];
+  let segments: EditSegment[] = [];
   let idx = 0;
 
   for (const r of ranges) {
@@ -127,6 +131,10 @@ export function buildPlan(input: PlannerInput): EditPlan {
     }
   }
 
+  // B-roll: imágenes y clips sobre el video principal (no altera la duración ni el audio).
+  const broll = applyBroll({ segments, assets: input.assets ?? [], beats: input.beats, mode: input.brollMode ?? "once", preset, rand });
+  segments = broll.segments;
+
   const duration = segments.reduce((a, s) => a + (s.srcOut - s.srcIn) / s.speed, 0);
 
   // Beats en la línea de tiempo
@@ -154,6 +162,7 @@ export function buildPlan(input: PlannerInput): EditPlan {
     grain: preset.grain,
     removedSilence,
     scriptSource: input.scriptSource,
+    brollCount: broll.count,
   };
 }
 

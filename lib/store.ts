@@ -1,12 +1,18 @@
 "use client";
 import { create } from "zustand";
-import type { AudioAnalysis, EditPlan, ProductBrief, ScriptBeat, ScriptStyleId, SourceMedia, VisualPresetId } from "./types";
+import type { Asset, AudioAnalysis, EditPlan, ProductBrief, ScriptBeat, ScriptStyleId, SourceMedia, VisualPresetId } from "./types";
+
+export type BrollMode = "off" | "once" | "fill";
+export const MAX_ASSETS = 12;
 
 export type Step = 1 | 2 | 3 | 4;
 
 interface StudioState {
   step: Step;
   source: SourceMedia | null;
+  /** Imágenes y clips extra que se insertan como B-roll. */
+  assets: Asset[];
+  brollMode: BrollMode;
   analysis: AudioAnalysis | null;
   analyzing: boolean;
   brief: ProductBrief;
@@ -21,6 +27,10 @@ interface StudioState {
   seed: number;
   setStep: (s: Step) => void;
   setSource: (s: SourceMedia | null) => void;
+  addAssets: (a: Asset[]) => void;
+  removeAsset: (id: string) => void;
+  moveAsset: (id: string, dir: -1 | 1) => void;
+  setBrollMode: (m: BrollMode) => void;
   setAnalysis: (a: AudioAnalysis | null) => void;
   setAnalyzing: (b: boolean) => void;
   setBrief: (b: Partial<ProductBrief>) => void;
@@ -50,6 +60,8 @@ const defaultBrief: ProductBrief = {
 export const useStudio = create<StudioState>((set) => ({
   step: 1,
   source: null,
+  assets: [],
+  brollMode: "once",
   analysis: null,
   analyzing: false,
   brief: defaultBrief,
@@ -64,6 +76,23 @@ export const useStudio = create<StudioState>((set) => ({
   seed: 1,
   setStep: (step) => set({ step }),
   setSource: (source) => set({ source, plan: null, analysis: null }),
+  addAssets: (a) => set((s) => ({ assets: [...s.assets, ...a].slice(0, MAX_ASSETS) })),
+  removeAsset: (id) =>
+    set((s) => {
+      const gone = s.assets.find((a) => a.id === id);
+      if (gone) URL.revokeObjectURL(gone.objectUrl);
+      return { assets: s.assets.filter((a) => a.id !== id) };
+    }),
+  moveAsset: (id, dir) =>
+    set((s) => {
+      const i = s.assets.findIndex((a) => a.id === id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= s.assets.length) return {};
+      const next = [...s.assets];
+      [next[i], next[j]] = [next[j], next[i]];
+      return { assets: next };
+    }),
+  setBrollMode: (brollMode) => set({ brollMode }),
   setAnalysis: (analysis) => set({ analysis }),
   setAnalyzing: (analyzing) => set({ analyzing }),
   setBrief: (b) => set((s) => ({ brief: { ...s.brief, ...b } })),
@@ -76,5 +105,9 @@ export const useStudio = create<StudioState>((set) => ({
   setRemoveSilence: (removeSilence) => set({ removeSilence }),
   setMaxDuration: (maxDuration) => set({ maxDuration }),
   reseed: () => set((s) => ({ seed: s.seed + 1 })),
-  reset: () => set({ step: 1, source: null, analysis: null, beats: [], plan: null, brief: defaultBrief }),
+  reset: () =>
+    set((s) => {
+      s.assets.forEach((a) => URL.revokeObjectURL(a.objectUrl));
+      return { step: 1, source: null, assets: [], analysis: null, beats: [], plan: null, brief: defaultBrief };
+    }),
 }));

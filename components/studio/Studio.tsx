@@ -29,10 +29,12 @@ export function Studio() {
       removeSilence: s.removeSilence,
       scriptSource: s.scriptSource,
       seed: s.seed,
+      assets: s.assets,
+      brollMode: s.brollMode,
     });
     s.setPlan(plan);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [s.source, s.step, s.beats, s.style, s.preset, s.maxDuration, s.removeSilence, s.analysis, s.seed]);
+  }, [s.source, s.step, s.beats, s.style, s.preset, s.maxDuration, s.removeSilence, s.analysis, s.seed, s.assets, s.brollMode]);
 
   return (
     <div className="flex min-h-screen flex-col">

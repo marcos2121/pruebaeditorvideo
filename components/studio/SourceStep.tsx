@@ -1,12 +1,34 @@
 "use client";
 import { useCallback, useRef, useState } from "react";
-import { UploadCloud, Link2, Loader2, CheckCircle2, AlertCircle, FileVideo } from "lucide-react";
-import { useStudio } from "@/lib/store";
+import { UploadCloud, Link2, Loader2, CheckCircle2, AlertCircle, FileVideo, Images, ImageIcon, Film, X, ChevronUp, ChevronDown } from "lucide-react";
+import { useStudio, MAX_ASSETS } from "@/lib/store";
 import { analyzeAudio } from "@/lib/engine/audio";
-import { fetchRemoteVideo, sourceFromBlob, formatBytes, formatTime } from "@/lib/media";
+import { fetchRemoteVideo, sourceFromBlob, assetFromFile, formatBytes, formatTime, MAX_CLIP_SECONDS } from "@/lib/media";
+import type { Asset } from "@/lib/types";
 
 export function SourceStep() {
-  const { source, setSource, setAnalysis, setAnalyzing, analyzing, analysis, setStep } = useStudio();
+  const { source, setSource, setAnalysis, setAnalyzing, analyzing, analysis, setStep, assets, addAssets, removeAsset, moveAsset } = useStudio();
+  const [assetBusy, setAssetBusy] = useState(false);
+  const [assetError, setAssetError] = useState<string | null>(null);
+  const [assetDrag, setAssetDrag] = useState(false);
+  const assetInputRef = useRef<HTMLInputElement>(null);
+
+  const onAssets = useCallback(async (list?: FileList | null) => {
+    if (!list?.length) return;
+    setAssetError(null);
+    setAssetBusy(true);
+    const room = MAX_ASSETS - assets.length;
+    const files = Array.from(list).slice(0, Math.max(0, room));
+    const errors: string[] = [];
+    if (files.length < list.length) errors.push(`Máximo ${MAX_ASSETS} recursos extra. Se omitieron ${list.length - files.length}.`);
+    const loaded: Asset[] = [];
+    for (const f of files) {
+      try { loaded.push(await assetFromFile(f)); } catch (e: any) { errors.push(e.message || String(e)); }
+    }
+    if (loaded.length) addAssets(loaded);
+    if (errors.length) setAssetError(errors.join(" "));
+    setAssetBusy(false);
+  }, [assets.length, addAssets]);
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +128,53 @@ export function SourceStep() {
         </div>
       )}
 
-      <button onClick={() => setStep(2)} disabled={!source || analyzing} className="btn-primary w-full">Continuar al guion</button>
+      <div className="space-y-3 border-t border-white/10 pt-5">
+        <div>
+          <h3 className="flex items-center gap-2 font-display text-lg font-bold"><Images className="h-5 w-5 text-volt-400" /> Imágenes y clips extra <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-semibold text-white/60">opcional</span></h3>
+          <p className="mt-1 text-xs text-white/50">Fotos del producto y clips cortos (hasta {MAX_CLIP_SECONDS} s) que se insertan como B-roll sobre tu video. Tu voz sigue sonando; los clips van sin audio.</p>
+        </div>
+
+        <div
+          onDragOver={(e) => { e.preventDefault(); setAssetDrag(true); }}
+          onDragLeave={() => setAssetDrag(false)}
+          onDrop={(e) => { e.preventDefault(); setAssetDrag(false); onAssets(e.dataTransfer.files); }}
+          onClick={() => assetInputRef.current?.click()}
+          className={`cursor-pointer rounded-2xl border-2 border-dashed p-4 text-center text-sm transition ${assetDrag ? "border-volt-500 bg-volt-500/10" : "border-white/15 bg-white/[0.02] hover:border-volt-500/50 hover:bg-white/[0.04]"}`}
+        >
+          <input ref={assetInputRef} type="file" multiple accept="image/*,video/*,.jpg,.jpeg,.png,.webp,.mp4,.mov,.webm" hidden onChange={(e) => { onAssets(e.target.files); e.target.value = ""; }} />
+          {assetBusy ? (
+            <span className="inline-flex items-center gap-2 text-white/70"><Loader2 className="h-4 w-4 animate-spin text-volt-400" />Leyendo recursos…</span>
+          ) : (
+            <span className="text-white/70">Arrastra fotos o clips aquí <span className="text-white/40">· JPG, PNG, WebP, MP4, MOV · {assets.length}/{MAX_ASSETS}</span></span>
+          )}
+        </div>
+
+        {assetError && <div className="flex items-start gap-2 rounded-xl border border-flame-500/40 bg-flame-500/10 p-3 text-xs text-flame-400"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />{assetError}</div>}
+
+        {assets.length > 0 && (
+          <ul className="space-y-1.5">
+            {assets.map((a, i) => (
+              <li key={a.id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-2">
+                <span className="grid h-12 w-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-black">
+                  {a.kind === "image" ? <img src={a.objectUrl} alt="" className="h-full w-full object-cover" /> : <video src={a.objectUrl} muted playsInline preload="metadata" className="h-full w-full object-cover" />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1.5 truncate text-sm font-semibold">{a.kind === "image" ? <ImageIcon className="h-3.5 w-3.5 shrink-0 text-volt-400" /> : <Film className="h-3.5 w-3.5 shrink-0 text-violet-400" />}<span className="truncate">{a.name}</span></span>
+                  <span className="block text-[11px] text-white/45">{a.kind === "image" ? "Imagen" : `Clip · ${formatTime(a.duration)}`} · {a.width}×{a.height} · {formatBytes(a.size)}</span>
+                </span>
+                <span className="flex shrink-0 items-center gap-0.5">
+                  <button onClick={() => moveAsset(a.id, -1)} disabled={i === 0} className="grid h-7 w-7 place-items-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white disabled:opacity-25" aria-label="Subir"><ChevronUp className="h-4 w-4" /></button>
+                  <button onClick={() => moveAsset(a.id, 1)} disabled={i === assets.length - 1} className="grid h-7 w-7 place-items-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white disabled:opacity-25" aria-label="Bajar"><ChevronDown className="h-4 w-4" /></button>
+                  <button onClick={() => removeAsset(a.id)} className="grid h-7 w-7 place-items-center rounded-lg text-white/50 hover:bg-flame-500/20 hover:text-flame-400" aria-label="Quitar"><X className="h-4 w-4" /></button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {assets.length > 0 && <p className="text-[11px] text-white/40">El orden de la lista es el orden en que aparecen en el video.</p>}
+      </div>
+
+      <button onClick={() => setStep(2)} disabled={!source || analyzing || assetBusy} className="btn-primary w-full">Continuar al guion</button>
     </div>
   );
 }

@@ -53,6 +53,15 @@ function layoutWords(ctx: CanvasRenderingContext2D, text: string, emphasis: stri
   return { lines, space, total: words.length };
 }
 
+/** Recurso de B-roll listo para dibujar. */
+export interface OverlayPicture {
+  el: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement;
+  w: number;
+  h: number;
+  /** Fondo difuminado pre-renderizado (solo imágenes que no llenan el 9:16). */
+  bg?: HTMLCanvasElement;
+}
+
 export interface FrameContext {
   ctx: CanvasRenderingContext2D;
   video: HTMLVideoElement | HTMLCanvasElement;
@@ -61,9 +70,11 @@ export interface FrameContext {
   t: number;
   videoW: number;
   videoH: number;
+  /** Devuelve el recurso de B-roll para un assetId, o null si aún no está listo. */
+  resolveOverlay?: (assetId: string) => OverlayPicture | null;
 }
 
-export function drawFrame({ ctx, video, plan, preset, t, videoW, videoH }: FrameContext) {
+export function drawFrame({ ctx, video, plan, preset, t, videoW, videoH, resolveOverlay }: FrameContext) {
   const W = OUT_W, H = OUT_H;
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -88,29 +99,58 @@ export function drawFrame({ ctx, video, plan, preset, t, videoW, videoH }: Frame
     dy += (pseudoRandom(t * 60 + 9) - 0.5) * k;
   }
 
-  // --- Video (cover) ---
-  const vw = videoW || 1080, vh = videoH || 1920;
-  const cover = Math.max(W / vw, H / vh);
-  const scale = cover * zoom;
+  // --- Fuente de imagen: video principal o B-roll ---
+  const overlay = seg.overlay ? resolveOverlay?.(seg.overlay.assetId) ?? null : null;
+  const pic: OverlayPicture = overlay ?? { el: video, w: videoW || 1080, h: videoH || 1920 };
+  const vw = pic.w || 1080, vh = pic.h || 1920;
+  const contain = Boolean(pic.bg);
+  const fit = contain ? Math.min((W * 0.9) / vw, (H * 0.5) / vh) : Math.max(W / vw, H / vh);
+  const scale = fit * zoom;
   const dw = vw * scale, dh = vh * scale;
   const ax = seg.anchorX, ay = seg.anchorY;
-  // Posición para mantener el anclaje centrado y sin bordes
-  let x = W / 2 - dw * ax - (W / 2 - W * ax) * (zoom - 1) + dx;
-  let y = H / 2 - dh * ay - (H / 2 - H * ay) * (zoom - 1) + dy;
-  x = clamp(x, W - dw, 0);
-  y = clamp(y, H - dh, 0);
+  let x: number, y: number;
+  if (contain) {
+    // Imagen centrada sobre fondo difuminado; el zoom crece desde el centro.
+    x = W / 2 - dw / 2 + dx;
+    y = H * 0.42 - dh / 2 + dy;
+  } else {
+    // Posición para mantener el anclaje centrado y sin bordes
+    x = W / 2 - dw * ax - (W / 2 - W * ax) * (zoom - 1) + dx;
+    y = H / 2 - dh * ay - (H / 2 - H * ay) * (zoom - 1) + dy;
+    x = clamp(x, W - dw, 0);
+    y = clamp(y, H - dh, 0);
+  }
 
   ctx.filter = preset.filter;
   try {
-    if (glitch > 0) {
+    if (contain && pic.bg) {
+      const bgZoom = 1.08 + (zoom - 1) * 0.5;
+      const bw = W * bgZoom, bh = H * bgZoom;
+      ctx.drawImage(pic.bg, (W - bw) / 2, (H - bh) / 2, bw, bh);
+      ctx.fillStyle = "rgba(0,0,0,0.28)";
+      ctx.fillRect(0, 0, W, H);
+    }
+    if (glitch > 0 && !contain) {
       const slices = 6;
       const sh = H / slices;
       for (let i = 0; i < slices; i++) {
         const off = (pseudoRandom(i * 3 + Math.floor(t * 30)) - 0.5) * 60 * glitch;
-        ctx.drawImage(video, 0, (i * sh - y) / scale, vw, sh / scale, x + off, i * sh, dw, sh);
+        ctx.drawImage(pic.el, 0, (i * sh - y) / scale, vw, sh / scale, x + off, i * sh, dw, sh);
       }
+    } else if (contain) {
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,0.55)";
+      ctx.shadowBlur = 60;
+      ctx.shadowOffsetY = 24;
+      roundRect(ctx, x, y, dw, dh, 36);
+      ctx.fillStyle = "#000";
+      ctx.fill();
+      ctx.shadowColor = "transparent";
+      ctx.clip();
+      ctx.drawImage(pic.el, x, y, dw, dh);
+      ctx.restore();
     } else {
-      ctx.drawImage(video, x, y, dw, dh);
+      ctx.drawImage(pic.el, x, y, dw, dh);
     }
   } catch { /* frame no listo */ }
   ctx.filter = "none";
@@ -173,6 +213,19 @@ export function drawFrame({ ctx, video, plan, preset, t, videoW, videoH }: Frame
   }
 
   ctx.restore();
+}
+
+/** Pre-renderiza un fondo difuminado 9:16 a baja resolución a partir de una imagen. */
+export function buildBlurredBackground(img: HTMLImageElement | HTMLVideoElement, w: number, h: number): HTMLCanvasElement {
+  const c = document.createElement("canvas");
+  c.width = 270; c.height = 480;
+  const g = c.getContext("2d")!;
+  const cover = Math.max(c.width / w, c.height / h) * 1.2;
+  const dw = w * cover, dh = h * cover;
+  g.filter = "blur(14px) saturate(1.3) brightness(0.8)";
+  try { g.drawImage(img, (c.width - dw) / 2, (c.height - dh) / 2, dw, dh); } catch { /* imagen no lista */ }
+  g.filter = "none";
+  return c;
 }
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {

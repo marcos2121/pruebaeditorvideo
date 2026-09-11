@@ -2,7 +2,7 @@
 
 **Convierte cualquier video crudo en un anuncio que rompe el scroll.**
 
-Plataforma de edición automática para dropshipping y afiliados. Subes un clip de ~1 minuto (o pegas un enlace de Google Drive / Dropbox / URL directa), describes el producto en tres campos, eliges uno de los 5 estilos de guion y un look visual, y ScrollBreak genera un video vertical 1080×1920 listo para TikTok, Reels y Shorts.
+Plataforma de edición automática para dropshipping y afiliados. Subes un clip de ~1 minuto (o pegas un enlace de Google Drive / Dropbox / URL directa), añades opcionalmente fotos del producto y clips cortos como B-roll, describes el producto en tres campos, eliges uno de los 5 estilos de guion y un look visual, y ScrollBreak genera un video vertical 1080×1920 listo para TikTok, Reels y Shorts.
 
 ## Qué hace el motor
 
@@ -11,6 +11,7 @@ Plataforma de edición automática para dropshipping y afiliados. Subes un clip 
 | Elimina silencios | Analiza el audio en el navegador (Web Audio), detecta pausas > 0.45 s y las recorta con padding natural. |
 | Cortes al ritmo | Detecta picos de energía y ajusta los cortes (1.2–4 s según el guion) a esos picos. |
 | Zooms y transiciones | Punch-in, punch-out, whip, flash y glitch alternados y sincronizados con los picos. |
+| B-roll | Imágenes y clips cortos (hasta 12) se insertan sobre el video principal cerca de los beats de producto. Las fotos llevan Ken Burns y fondo difuminado; los clips van mudos y tu voz sigue intacta. Modos: una vez, rellenar o sin B-roll. |
 | Hook | Banner animado con el gancho durante los primeros segundos. |
 | Subtítulos | Palabra por palabra, con resaltado de palabras clave, stroke y pop-in. |
 | Stickers | Emoji animado por beat (según el preset). |

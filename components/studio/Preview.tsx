@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Play, Pause, Download, Loader2, Volume2, VolumeX, Scissors, Zap, Clock, Sparkles } from "lucide-react";
+import { Play, Pause, Download, Loader2, Volume2, VolumeX, Scissors, Zap, Clock, Sparkles, Images } from "lucide-react";
 import { useStudio } from "@/lib/store";
 import { PRESET_BY_ID } from "@/lib/styles";
 import { Player } from "@/lib/engine/player";
@@ -8,7 +8,7 @@ import { exportVideo, pickMime } from "@/lib/engine/exporter";
 import { formatTime, formatBytes } from "@/lib/media";
 
 export function Preview() {
-  const { source, plan, preset, step } = useStudio();
+  const { source, plan, preset, step, assets } = useStudio();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const playerRef = useRef<Player | null>(null);
@@ -35,6 +35,8 @@ export function Preview() {
         pl.onTime = (t) => setTime(t);
         pl.onEnded = () => setPlaying(false);
         playerRef.current = pl;
+        await pl.setAssets(assets);
+        if (cancelled) return;
         const start = () => { pl.seek(0); setReady(true); };
         if (video.readyState >= 1) start(); else video.addEventListener("loadedmetadata", start, { once: true });
       } else {
@@ -42,7 +44,11 @@ export function Preview() {
       }
     })();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plan, preset, source]);
+
+  // Sincroniza la biblioteca de B-roll cuando cambian los recursos
+  useEffect(() => { playerRef.current?.setAssets(assets); }, [assets]);
 
   useEffect(() => () => { playerRef.current?.destroy(); playerRef.current = null; }, []);
   useEffect(() => { setResult(null); }, [plan]);
@@ -115,10 +121,11 @@ export function Preview() {
             <button onClick={() => setMuted((m) => !m)} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/10 hover:bg-white/15">{muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}</button>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 text-center">
+          <div className={`grid gap-2 text-center ${plan.brollCount > 0 ? "grid-cols-4" : "grid-cols-3"}`}>
             <Stat icon={Clock} label="Duración" value={`${plan.duration.toFixed(1)} s`} />
             <Stat icon={Scissors} label="Silencio quitado" value={`-${plan.removedSilence.toFixed(1)} s`} />
             <Stat icon={Zap} label="Cortes / efectos" value={`${cuts} / ${zooms}`} />
+            {plan.brollCount > 0 && <Stat icon={Images} label="B-roll" value={`${plan.brollCount}`} />}
           </div>
 
           <button onClick={doExport} disabled={exporting !== null || !ready} className="btn-primary w-full">
