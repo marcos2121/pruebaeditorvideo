@@ -41,6 +41,10 @@ Viral TikTok · Cinemático · Minimal Clean · Neon Hype · UGC Auténtico.
 
 No hay servidores de render ni colas: el video nunca sale del navegador del usuario. Las únicas rutas de servidor son `/api/plan` (guion) y `/api/fetch-video` (proxy para enlaces externos, con normalización de Drive/Dropbox/OneDrive y bloqueo de hosts privados).
 
+## Editor para videos largos de YouTube
+
+En [`youtube-editor/`](youtube-editor/) hay un segundo producto para **videos largos** (10 min a varias horas). Pegas el enlace de Drive o subes el video y te devuelve el MP4 editado: sin silencios ni muletillas, con zoom en los cortes, gancho al inicio, capítulos con transiciones, subtítulos animados, audio limpio a -14 LUFS, además de miniatura, `.srt` y título/descripción/etiquetas. Corre en tu propia computadora porque un video de 45 min no cabe en un servidor gratuito. Instrucciones en [`youtube-editor/README.md`](youtube-editor/README.md).
+
 ## Desarrollo
 
 ```bash

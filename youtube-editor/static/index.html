@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor YouTube · ScrollBreak</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%2306060b'/><path d='M18 4 8 18h7l-2 10 11-15h-7z' fill='%239dff00'/></svg>">
+<style>
+  :root {
+    --bg: #06060b; --card: rgba(255,255,255,.04); --line: rgba(255,255,255,.09); --text: #f4f4f8;
+    --muted: rgba(244,244,248,.55); --volt: #9dff00; --volt2: #c8ff6b; --violet: #9d7bff; --flame: #ff6a3d;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+         -webkit-font-smoothing: antialiased; }
+  body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+         background: radial-gradient(700px 400px at 15% -5%, rgba(157,255,0,.10), transparent 70%),
+                     radial-gradient(700px 500px at 100% 0%, rgba(124,92,255,.14), transparent 70%); }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 16px 80px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; letter-spacing: -.02em; }
+  .brand b { color: var(--volt); }
+  .pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pill { font-size: 12px; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+  .pill.ok { color: var(--volt2); border-color: rgba(157,255,0,.3); }
+  .pill.warn { color: #ffb38f; border-color: rgba(255,106,61,.35); }
+  h1 { font-size: clamp(28px, 5vw, 44px); line-height: 1.08; letter-spacing: -.03em; margin: 0 0 10px; }
+  h1 span { background: linear-gradient(120deg,#fff 0%,var(--volt2) 45%,var(--violet) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { color: var(--muted); max-width: 640px; margin: 0 0 28px; }
+  .grid { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .grid { grid-template-columns: minmax(0,1fr); } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 22px; backdrop-filter: blur(16px); }
+  .col { display: grid; grid-template-columns: minmax(0,1fr); gap: 18px; align-content: start; min-width: 0; }
+  .step { display: flex; align-items: center; gap: 10px; font-weight: 700; margin: 0 0 14px; }
+  .step i { font-style: normal; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 13px;
+            background: var(--volt); color: #06060b; }
+  .tabs { display: inline-flex; max-width: 100%; padding: 4px; border-radius: 99px; background: rgba(255,255,255,.05); margin-bottom: 14px; }
+  .tabs button { white-space: nowrap; border: 0; background: transparent; color: var(--muted); padding: 7px 16px; border-radius: 99px; font: inherit; font-weight: 600; cursor: pointer; }
+  .tabs button.on { background: rgba(255,255,255,.12); color: var(--text); }
+  label.lbl { display: block; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+  input[type=text], input[type=url], select { width: 100%; min-width: 0; max-width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,.1);
+         background: rgba(255,255,255,.04); color: var(--text); font: inherit; outline: none; }
+  select option { background: #12121f; }
+  input:focus, select:focus { border-color: rgba(157,255,0,.6); }
+  .hint { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+  .drop { border: 1.5px dashed rgba(255,255,255,.18); border-radius: 16px; padding: 26px 16px; text-align: center; cursor: pointer; transition: .2s; }
+  .drop:hover, .drop.over { border-color: var(--volt); background: rgba(157,255,0,.05); }
+  .drop strong { display: block; margin-bottom: 4px; }
+  .row { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; margin-bottom: 14px; }
+  @media (max-width: 520px) { .row { grid-template-columns: minmax(0,1fr); } }
+  .toggles { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 8px; margin: 4px 0 14px; }
+  @media (max-width: 520px) { .toggles { grid-template-columns: minmax(0,1fr); } }
+  .tg { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); cursor: pointer; }
+  .tg input { accent-color: var(--volt); margin-top: 3px; }
+  .tg small { display: block; color: var(--muted); font-size: 12px; line-height: 1.35; }
+  .tg .ai { font-size: 10px; font-weight: 800; color: var(--violet); border: 1px solid rgba(157,123,255,.4); border-radius: 6px; padding: 0 5px; margin-left: 4px; }
+  details { margin-top: 6px; }
+  summary { cursor: pointer; color: var(--muted); font-weight: 600; font-size: 14px; }
+  .range { display: flex; align-items: center; gap: 10px; }
+  .range input { flex: 1; accent-color: var(--volt); }
+  .range output { min-width: 52px; text-align: right; font-variant-numeric: tabular-nums; color: var(--volt2); font-size: 13px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 99px; padding: 14px 26px;
+         font: inherit; font-weight: 800; cursor: pointer; transition: .2s; text-decoration: none; }
+  .btn.primary { background: var(--volt); color: #06060b; width: 100%; font-size: 16px; }
+  .btn.primary:hover { background: var(--volt2); box-shadow: 0 0 50px -10px rgba(157,255,0,.6); }
+  .btn.primary:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
+  .btn.ghost { background: rgba(255,255,255,.05); color: var(--text); border: 1px solid rgba(255,255,255,.14); padding: 10px 16px; font-weight: 700; font-size: 14px; }
+  .btn.ghost:hover { border-color: rgba(255,255,255,.3); }
+  .bar { height: 10px; border-radius: 99px; background: rgba(255,255,255,.07); overflow: hidden; }
+  .bar div { height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, var(--volt), var(--volt2)); transition: width .6s; }
+  .big { font-size: 34px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .stages { list-style: none; padding: 0; margin: 16px 0; display: grid; gap: 6px; }
+  .stages li { display: flex; gap: 10px; align-items: center; font-size: 14px; color: var(--muted); }
+  .stages li .dot { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.2); display: grid; place-items: center; font-size: 11px; flex: none; }
+  .stages li.done { color: var(--text); } .stages li.done .dot { background: var(--volt); border-color: var(--volt); color: #06060b; }
+  .stages li.now { color: var(--text); font-weight: 600; } .stages li.now .dot { border-color: var(--volt); animation: pulse 1.2s infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 5px rgba(157,255,0,.15); } }
+  .log { max-height: 180px; overflow: auto; font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted);
+         background: rgba(0,0,0,.25); border-radius: 12px; padding: 10px 12px; }
+  .err { color: #ffb38f; background: rgba(255,77,28,.08); border: 1px solid rgba(255,77,28,.3); border-radius: 12px; padding: 12px; white-space: pre-wrap; font-size: 13px; }
+  video { width: 100%; border-radius: 14px; background: #000; margin: 6px 0 14px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+  .stat { background: rgba(255,255,255,.04); border-radius: 12px; padding: 10px; }
+  .stat b { display: block; font-size: 18px; } .stat span { font-size: 12px; color: var(--muted); }
+  .downloads { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  textarea { width: 100%; min-height: 180px; border-radius: 12px; border: 1px solid var(--line); background: rgba(0,0,0,.25);
+             color: var(--text); padding: 12px; font: 13px/1.5 inherit; resize: vertical; }
+  .history { display: grid; grid-template-columns: minmax(0,1fr); gap: 8px; }
+  .hjob { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--line);
+          border-radius: 12px; cursor: pointer; font-size: 14px; }
+  .hjob:hover { border-color: rgba(255,255,255,.25); }
+  .tag { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: rgba(255,255,255,.08); white-space: nowrap; }
+  .tag.listo { background: rgba(157,255,0,.15); color: var(--volt2); } .tag.error { background: rgba(255,77,28,.15); color: #ffb38f; }
+  .tag.procesando { background: rgba(157,123,255,.18); color: #c9b8ff; }
+  .muted { color: var(--muted); } .hidden { display: none !important; }
+  .ellipsis { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <svg width="28" height="28" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#12121f"/><path d="M18 4 8 18h7l-2 10 11-15h-7z" fill="#9dff00"/></svg>
+      <span>Scroll<b>Break</b> <span class="muted" style="font-weight:600">· Editor YouTube</span></span>
+    </div>
+    <div class="pills" id="pills"></div>
+  </header>
+
+  <h1>Tu video crudo, <span>editado y listo para YouTube.</span></h1>
+  <p class="lead">Pega el enlace de Drive o sube el archivo. El editor quita silencios y muletillas, pone zooms en los cortes, un gancho al inicio,
+    capítulos con transiciones, subtítulos animados, limpia el audio y lo deja a volumen de YouTube. También te entrega título, descripción con capítulos y miniatura.</p>
+
+  <div class="grid">
+    <div class="col">
+      <section class="card">
+        <p class="step"><i>1</i> Tu video</p>
+        <div class="tabs" role="tablist">
+          <button class="on" data-tab="link">Enlace (Drive, Dropbox…)</button>
+          <button data-tab="file">Subir archivo</button>
+        </div>
+        <div id="tab-link">
+          <input type="url" id="url" placeholder="https://drive.google.com/file/d/…/view">
+          <p class="hint">En Drive: clic derecho al video → Compartir → «Cualquier persona con el enlace».</p>
+        </div>
+        <div id="tab-file" class="hidden">
+          <div class="drop" id="drop">
+            <strong id="dropTitle">Arrastra aquí tu video</strong>
+            <span class="muted" id="dropSub">o haz clic para elegirlo · MP4, MOV, MKV…</span>
+          </div>
+          <input type="file" id="file" accept="video/*" class="hidden">
+        </div>
+      </section>
+
+      <section class="card">
+        <p class="step"><i>2</i> Estilo de la edición</p>
+        <div class="row">
+          <div>
+            <label class="lbl" for="language">Idioma del video</label>
+            <select id="language"><option value="es">Español</option><option value="en">Inglés</option><option value="auto">Detectar solo</option></select>
+          </div>
+          <div>
+            <label class="lbl" for="subtitles">Subtítulos</label>
+            <select id="subtitles"><option value="highlight">Animados (palabra resaltada)</option><option value="classic">Clásicos</option><option value="off">Sin subtítulos</option></select>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label class="lbl" for="creator_name">Tu nombre o canal (rótulo)</label>
+            <input type="text" id="creator_name" maxlength="60" placeholder="Ej. Marcos · Tu Canal">
+          </div>
+          <div>
+            <label class="lbl" for="whisper_model">Precisión de subtítulos</label>
+            <select id="whisper_model">
+              <option value="base">Rápida</option><option value="small" selected>Equilibrada</option>
+              <option value="medium">Alta (más lenta)</option><option value="large-v3">Máxima (muy lenta)</option>
+            </select>
+          </div>
+        </div>
+        <div class="toggles">
+          <label class="tg"><input type="checkbox" id="remove_fillers" checked><span>Quitar muletillas<small>«eh», «ehm», «mmm»</small></span></label>
+          <label class="tg"><input type="checkbox" id="zoom_cuts" checked><span>Zoom en los cortes<small>Alterna plano normal y acercado</small></span></label>
+          <label class="tg"><input type="checkbox" id="hook" checked><span>Gancho al inicio <em class="ai">IA</em><small>El mejor momento como avance</small></span></label>
+          <label class="tg"><input type="checkbox" id="chapter_cards" checked><span>Capítulos en pantalla <em class="ai">IA</em><small>Título animado en cada tema</small></span></label>
+          <label class="tg"><input type="checkbox" id="transitions" checked><span>Transiciones<small>Destello + whoosh entre partes</small></span></label>
+          <label class="tg"><input type="checkbox" id="denoise" checked><span>Limpiar la voz<small>Ruido, ecualizador, compresor</small></span></label>
+          <label class="tg"><input type="checkbox" id="color" checked><span>Mejorar color<small>Más contraste y viveza</small></span></label>
+        </div>
+        <label class="lbl">Música de fondo (opcional)</label>
+        <div class="row" style="align-items:center">
+          <div><button class="btn ghost" id="musicBtn" type="button" style="width:100%">Elegir canción…</button><input type="file" id="music" accept="audio/*" class="hidden"></div>
+          <div class="range"><input type="range" id="music_volume_db" min="-36" max="-16" step="1" value="-26"><output id="music_volume_db_o">-26 dB</output></div>
+        </div>
+        <p class="hint" style="margin-top:-6px">Usa música sin copyright (Biblioteca de audio de YouTube). Baja sola cuando hablas.</p>
+        <details>
+          <summary>Ajustes avanzados</summary>
+          <div style="margin-top:12px">
+            <label class="lbl">Cortar pausas más largas que</label>
+            <div class="range"><input type="range" id="min_silence" min="0.3" max="2" step="0.05" value="0.6"><output id="min_silence_o">0.60 s</output></div>
+            <label class="lbl" style="margin-top:10px">Respiro antes/después de hablar</label>
+            <div class="range"><input type="range" id="keep_pause" min="0.05" max="0.4" step="0.01" value="0.15"><output id="keep_pause_o">0.15 s</output></div>
+            <label class="lbl" style="margin-top:10px">Intensidad del zoom</label>
+            <div class="range"><input type="range" id="zoom_level" min="1.05" max="1.25" step="0.01" value="1.12"><output id="zoom_level_o">112 %</output></div>
+            <label class="lbl" style="margin-top:10px" for="quality">Exportación</label>
+            <select id="quality"><option value="alta">Alta calidad (recomendada)</option><option value="rapida">Rápida (archivo algo más pesado)</option></select>
+          </div>
+        </details>
+      </section>
+
+      <div>
+        <button class="btn primary" id="go">⚡ Editar mi video</button>
+        <p class="hint" id="goHint" style="text-align:center"></p>
+      </div>
+    </div>
+
+    <div class="col">
+      <section class="card" id="emptyCard">
+        <p class="step"><i>3</i> Resultado</p>
+        <p class="muted" style="margin:0">Aquí verás el progreso y, al terminar, tu video editado con todo lo necesario para subirlo.</p>
+        <p class="hint">Un video de 45 min suele tardar entre 40 y 90 min, según tu computadora. Puedes dejarlo trabajando.</p>
+      </section>
+
+      <section class="card hidden" id="jobCard">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+          <p class="step" style="margin:0"><i>3</i> <span id="jobTitle">Editando…</span></p>
+          <span class="big" id="pct">0%</span>
+        </div>
+        <div class="bar" style="margin-top:12px"><div id="barFill"></div></div>
+        <p class="hint" id="eta"></p>
+        <ul class="stages" id="stages"></ul>
+        <div id="errBox" class="err hidden"></div>
+        <div id="result" class="hidden">
+          <video id="player" controls preload="metadata"></video>
+          <div class="stats" id="stats"></div>
+          <div class="downloads" id="downloads"></div>
+          <label class="lbl">Título, descripción con capítulos y etiquetas</label>
+          <textarea id="ytText" readonly></textarea>
+          <button class="btn ghost" id="copyYt" style="margin-top:8px">Copiar texto</button>
+        </div>
+        <details style="margin-top:12px"><summary>Registro detallado</summary><div class="log" id="log" style="margin-top:8px"></div></details>
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <button class="btn ghost" id="cancelBtn">Cancelar</button>
+          <button class="btn ghost hidden" id="deleteBtn">Borrar este trabajo</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <p class="step" style="margin-bottom:10px">Trabajos anteriores</p>
+        <div class="history" id="history"><p class="muted" style="margin:0;font-size:14px">Todavía no hay trabajos.</p></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const OPTS = ["language","subtitles","creator_name","whisper_model","remove_fillers","zoom_cuts","hook","chapter_cards",
+              "transitions","denoise","color","music_volume_db","min_silence","keep_pause","zoom_level","quality"];
+let tab = "link", videoFile = null, musicFile = null, current = null, stages = [], poll = null;
+
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+                set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+
+function fmtSize(b) { return b > 1e9 ? (b / 1e9).toFixed(2) + " GB" : b > 1e6 ? (b / 1e6).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1e3)) + " KB"; }
+function fmtTime(s) { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+  return h ? `${h}:${String(m).padStart(2,"0")}:${String(x).padStart(2,"0")}` : `${m}:${String(x).padStart(2,"0")}`; }
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+// ---- estado del sistema
+fetch("/api/estado").then(r => r.json()).then(s => {
+  stages = s.etapas;
+  const p = [];
+  p.push(s.ffmpeg ? '<span class="pill ok">ffmpeg ✓</span>' : '<span class="pill warn">Falta ffmpeg</span>');
+  p.push(s.whisper ? '<span class="pill ok">Subtítulos ✓</span>' : '<span class="pill warn">Sin Whisper: sin subtítulos</span>');
+  p.push(s.ia ? `<span class="pill ok">IA Claude ✓</span>` : '<span class="pill warn" title="Configura ANTHROPIC_API_KEY">Sin IA: sin gancho ni títulos</span>');
+  $("pills").innerHTML = p.join("");
+  if (!s.ia) { ["hook","chapter_cards"].forEach(id => { $(id).checked = false; $(id).disabled = true; }); }
+  const last = store.get("yt-editor-job");
+  if (last) openJob(last);
+});
+
+// ---- pestañas y archivos
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  tab = b.dataset.tab;
+  document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b));
+  $("tab-link").classList.toggle("hidden", tab !== "link");
+  $("tab-file").classList.toggle("hidden", tab !== "file");
+});
+$("drop").onclick = () => $("file").click();
+$("file").onchange = () => setVideo($("file").files[0]);
+["dragover","dragenter"].forEach(ev => $("drop").addEventListener(ev, e => { e.preventDefault(); $("drop").classList.add("over"); }));
+["dragleave","drop"].forEach(ev => $("drop").addEventListener(ev, e => { e.preventDefault(); $("drop").classList.remove("over"); }));
+$("drop").addEventListener("drop", e => setVideo(e.dataTransfer.files[0]));
+function setVideo(f) { if (!f) return; videoFile = f; $("dropTitle").textContent = f.name; $("dropSub").textContent = fmtSize(f.size) + " · clic para cambiar"; }
+$("musicBtn").onclick = () => $("music").click();
+$("music").onchange = () => { musicFile = $("music").files[0] || null; $("musicBtn").textContent = musicFile ? "♪ " + musicFile.name : "Elegir canción…"; };
+
+const fmtRange = { music_volume_db: v => v + " dB", min_silence: v => Number(v).toFixed(2) + " s",
+                   keep_pause: v => Number(v).toFixed(2) + " s", zoom_level: v => Math.round(v * 100) + " %" };
+Object.keys(fmtRange).forEach(id => { const upd = () => $(id + "_o").textContent = fmtRange[id]($(id).value); $(id).oninput = upd; upd(); });
+
+// opciones recordadas
+try { const saved = JSON.parse(store.get("yt-editor-opts") || "{}");
+  OPTS.forEach(k => { if (k in saved && $(k)) { if ($(k).type === "checkbox") $(k).checked = saved[k]; else $(k).value = saved[k]; } });
+  Object.keys(fmtRange).forEach(id => $(id).oninput()); } catch {}
+
+function options() {
+  const o = {};
+  OPTS.forEach(k => { const el = $(k); o[k] = el.type === "checkbox" ? el.checked : el.value; });
+  store.set("yt-editor-opts", JSON.stringify(o));
+  return o;
+}
+
+function upload(file, label) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/subir?nombre=" + encodeURIComponent(file.name));
+    xhr.upload.onprogress = e => { if (e.lengthComputable) $("goHint").textContent = `${label}: ${Math.round(e.loaded / e.total * 100)}% de ${fmtSize(e.total)}`; };
+    xhr.onload = () => xhr.status < 300 ? resolve(JSON.parse(xhr.responseText)) : reject(new Error(JSON.parse(xhr.responseText).detail || "Error al subir"));
+    xhr.onerror = () => reject(new Error("Se cortó la conexión al subir el archivo."));
+    xhr.send(file);
+  });
+}
+
+$("go").onclick = async () => {
+  const body = { options: options() };
+  $("go").disabled = true;
+  try {
+    if (tab === "link") {
+      body.url = $("url").value.trim();
+      if (!body.url) throw new Error("Pega el enlace de tu video.");
+    } else {
+      if (!videoFile) throw new Error("Elige un video.");
+      body.upload_id = (await upload(videoFile, "Subiendo video")).upload_id;
+      body.source_name = videoFile.name;
+    }
+    if (musicFile) body.music_upload_id = (await upload(musicFile, "Subiendo música")).upload_id;
+    const r = await fetch("/api/trabajos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const job = await r.json();
+    if (!r.ok) throw new Error(job.detail || "No se pudo crear el trabajo.");
+    $("goHint").textContent = "";
+    openJob(job.id);
+  } catch (e) { $("goHint").textContent = "⚠ " + e.message; }
+  finally { $("go").disabled = false; }
+};
+
+// ---- seguimiento
+function openJob(id) {
+  current = id; store.set("yt-editor-job", id);
+  clearInterval(poll); refresh(); poll = setInterval(refresh, 2000);
+}
+
+let shownResult = null;
+async function refresh() {
+  loadHistory();
+  if (!current) return;
+  const r = await fetch("/api/trabajos/" + current);
+  if (!r.ok) { clearInterval(poll); current = null; $("jobCard").classList.add("hidden"); $("emptyCard").classList.remove("hidden"); return; }
+  const j = await r.json();
+  $("emptyCard").classList.add("hidden"); $("jobCard").classList.remove("hidden");
+  const titles = { en_cola: "En cola…", procesando: "Editando…", listo: "¡Video listo!", error: "Hubo un problema", cancelado: "Cancelado" };
+  $("jobTitle").textContent = titles[j.status] || j.status;
+  const pct = Math.round(j.progress * 100);
+  $("pct").textContent = pct + "%"; $("barFill").style.width = pct + "%";
+  if (j.status === "procesando" && j.started) {
+    const el = Date.now() / 1000 - j.started;
+    $("eta").textContent = `Tiempo: ${fmtTime(el)}` + (j.progress > 0.12 ? ` · quedan ~${fmtTime(el / j.progress - el)}` : "");
+  } else if (j.status === "listo" && j.finished) $("eta").textContent = `Terminado en ${fmtTime(j.finished - j.started)}`;
+  else $("eta").textContent = "";
+  const idx = stages.findIndex(s => s.key === j.stage);
+  $("stages").innerHTML = stages.map((s, i) => {
+    const cls = j.status === "listo" || i < idx ? "done" : (i === idx && j.status === "procesando" ? "now" : "");
+    const extra = cls === "now" ? ` · ${Math.round(j.stage_progress * 100)}%` : "";
+    return `<li class="${cls}"><span class="dot">${cls === "done" ? "✓" : ""}</span>${esc(s.label)}${extra}</li>`;
+  }).join("");
+  $("log").innerHTML = j.logs.map(l => `<div>${new Date(l.t * 1000).toLocaleTimeString()} — ${esc(l.msg)}</div>`).join("");
+  $("errBox").classList.toggle("hidden", !j.error); $("errBox").textContent = j.error;
+  const active = j.status === "procesando" || j.status === "en_cola";
+  $("cancelBtn").classList.toggle("hidden", !active); $("deleteBtn").classList.toggle("hidden", active);
+  if (!active) clearInterval(poll);
+  if (j.status === "listo" && shownResult !== j.id) showResult(j);
+  if (j.status !== "listo") { $("result").classList.add("hidden"); shownResult = null; }
+}
+
+async function showResult(j) {
+  shownResult = j.id;
+  const base = `/api/trabajos/${j.id}/archivos/`;
+  $("result").classList.remove("hidden");
+  $("player").src = base + "video_editado.mp4";
+  const rep = j.report || {};
+  $("stats").innerHTML = `
+    <div class="stat"><b>${fmtTime(rep.duracion_original || 0)} → ${fmtTime(rep.duracion_final || 0)}</b><span>duración</span></div>
+    <div class="stat"><b>${rep.cortes ?? "–"}</b><span>cortes</span></div>
+    <div class="stat"><b>${rep.muletillas ?? 0}</b><span>muletillas fuera</span></div>`;
+  const names = { "video_editado.mp4": "⬇ Video editado", "subtitulos.srt": "Subtítulos .srt", "miniatura.jpg": "Miniatura", "youtube.txt": "Textos .txt" };
+  $("downloads").innerHTML = j.outputs.filter(o => names[o.name]).map(o =>
+    `<a class="btn ghost" href="${base}${o.name}?descargar=true">${names[o.name]} <span class="muted">${fmtSize(o.size)}</span></a>`).join("");
+  try { $("ytText").value = await (await fetch(base + "youtube.txt")).text(); } catch {}
+}
+
+$("copyYt").onclick = () => { navigator.clipboard.writeText($("ytText").value).then(() => { $("copyYt").textContent = "¡Copiado!"; setTimeout(() => $("copyYt").textContent = "Copiar texto", 1500); }); };
+$("cancelBtn").onclick = async () => { if (current && confirm("¿Cancelar la edición?")) { await fetch(`/api/trabajos/${current}/cancelar`, { method: "POST" }); refresh(); poll = setInterval(refresh, 2000); } };
+$("deleteBtn").onclick = async () => {
+  if (!current || !confirm("¿Borrar este trabajo y sus archivos?")) return;
+  await fetch("/api/trabajos/" + current, { method: "DELETE" });
+  current = null; store.set("yt-editor-job", ""); $("jobCard").classList.add("hidden"); $("emptyCard").classList.remove("hidden"); loadHistory();
+};
+
+let lastHistory = "";
+async function loadHistory() {
+  const list = await (await fetch("/api/trabajos")).json();
+  const html = list.length ? list.map(j => `
+    <div class="hjob" data-id="${esc(j.id)}">
+      <span class="ellipsis">${esc(new Date(j.created * 1000).toLocaleString())} · <span class="muted">${esc(j.source.replace(/^https?:\/\//, "").slice(0, 40))}</span></span>
+      <span class="tag ${esc(j.status)}">${esc(j.status.replace("_", " "))}</span>
+    </div>`).join("") : '<p class="muted" style="margin:0;font-size:14px">Todavía no hay trabajos.</p>';
+  if (html !== lastHistory) {
+    lastHistory = html; $("history").innerHTML = html;
+    document.querySelectorAll(".hjob").forEach(el => el.onclick = () => openJob(el.dataset.id));
+  }
+}
+loadHistory();
+</script>
+</body>
+</html>

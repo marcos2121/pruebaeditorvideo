@@ -1,0 +1,7 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+numpy>=1.26
+requests>=2.31
+faster-whisper>=1.0.3
+anthropic>=1.0
+gdown>=5.1
