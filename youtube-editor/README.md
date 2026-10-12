@@ -36,7 +36,7 @@ Ventajas: el video no sale de tu equipo, no pagas servidores y no tiene límite 
 2. Instala **ffmpeg**: abre *PowerShell* y escribe `winget install Gyan.FFmpeg`.
 3. Descarga esta carpeta `youtube-editor` y haz doble clic en **`iniciar.bat`**.
 
-La primera vez tarda unos minutos en instalar todo. Después se abre el navegador solo. Lo que se instala va en `%LOCALAPPDATA%\editor-youtube` (una ruta corta), para no chocar con el límite de 260 caracteres de Windows. Si la instalación se corta, vuelve a abrir `iniciar.bat` y empezará de cero.
+La primera vez tarda unos minutos en instalar todo. Después se abre el navegador solo. Lo que se instala va en `%USERPROFILE%\.editor-youtube` (una ruta corta y fuera de AppData, que el Python de la Microsoft Store redirige), para no chocar con el límite de 260 caracteres de Windows. Si la instalación se corta, vuelve a abrir `iniciar.bat` y empezará de cero.
 
 ### Opción B: Mac / Linux
 

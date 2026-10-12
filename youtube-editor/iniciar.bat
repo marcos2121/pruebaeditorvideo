@@ -17,8 +17,9 @@ where py >nul 2>nul && set "PY=py -3"
   exit /b 1
 )
 
-rem El entorno va en una ruta corta para no chocar con el limite de 260 caracteres de Windows.
-set "VENV=%LOCALAPPDATA%\editor-youtube\venv"
+rem El entorno va en una ruta corta para no chocar con el limite de 260 caracteres de Windows,
+rem y fuera de AppData porque el Python de la Microsoft Store redirige lo que se escribe ahi.
+set "VENV=%USERPROFILE%\.editor-youtube\venv"
 if not exist "%VENV%\instalado.ok" (
   echo Instalando el editor por primera vez, tarda unos minutos...
   if exist "%VENV%" rmdir /s /q "%VENV%"
