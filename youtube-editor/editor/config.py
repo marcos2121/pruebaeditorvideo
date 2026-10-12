@@ -42,15 +42,17 @@ class EditOptions:
     remove_fillers: bool = True     # "eh", "ehm", "mmm"...
     zoom_cuts: bool = True          # alterna plano normal / acercado en los cortes
     zoom_level: float = 1.12
+    motion: bool = True             # acercamiento lento en cada toma + golpe de zoom en palabras clave
 
     # Estructura (requiere clave de Claude para gancho y capítulos con título)
     hook: bool = True
     chapter_cards: bool = True
     transitions: bool = True        # destello + whoosh entre capítulos
     creator_name: str = ""          # rótulo inferior al empezar el video
+    cta: bool = True                # botón animado "Suscríbete"
 
     # Imagen y sonido
-    subtitles: str = "highlight"    # highlight | classic | off
+    subtitles: str = "highlight"    # highlight | caps | classic | off
     color: bool = True
     denoise: bool = True
     music_volume_db: float = -26.0
@@ -84,7 +86,7 @@ class EditOptions:
     def validate(self) -> None:
         if self.whisper_model not in WHISPER_MODELS:
             self.whisper_model = "small"
-        if self.subtitles not in ("highlight", "classic", "off"):
+        if self.subtitles not in ("highlight", "caps", "classic", "off"):
             self.subtitles = "highlight"
         if self.quality not in ("alta", "rapida"):
             self.quality = "alta"

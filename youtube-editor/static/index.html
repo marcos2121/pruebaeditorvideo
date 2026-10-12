@@ -140,7 +140,7 @@
           </div>
           <div>
             <label class="lbl" for="subtitles">Subtítulos</label>
-            <select id="subtitles"><option value="highlight">Animados (palabra resaltada)</option><option value="classic">Clásicos</option><option value="off">Sin subtítulos</option></select>
+            <select id="subtitles"><option value="highlight">Animados (palabra resaltada)</option><option value="caps">Animados en MAYÚSCULAS</option><option value="classic">Clásicos</option><option value="off">Sin subtítulos</option></select>
           </div>
         </div>
         <div class="row">
@@ -159,6 +159,8 @@
         <div class="toggles">
           <label class="tg"><input type="checkbox" id="remove_fillers" checked><span>Quitar muletillas<small>«eh», «ehm», «mmm»</small></span></label>
           <label class="tg"><input type="checkbox" id="zoom_cuts" checked><span>Zoom en los cortes<small>Alterna plano normal y acercado</small></span></label>
+          <label class="tg"><input type="checkbox" id="motion" checked><span>Movimiento de cámara<small>Acercamiento suave y golpe de zoom en palabras clave</small></span></label>
+          <label class="tg"><input type="checkbox" id="cta" checked><span>Botón «Suscríbete»<small>Animado, con sonido, a un tercio del video</small></span></label>
           <label class="tg"><input type="checkbox" id="hook" checked><span>Gancho al inicio <em class="ai">IA</em><small>El mejor momento como avance</small></span></label>
           <label class="tg"><input type="checkbox" id="chapter_cards" checked><span>Capítulos en pantalla <em class="ai">IA</em><small>Título animado en cada tema</small></span></label>
           <label class="tg"><input type="checkbox" id="transitions" checked><span>Transiciones<small>Destello + whoosh entre partes</small></span></label>
@@ -211,6 +213,7 @@
         <div id="result" class="hidden">
           <video id="player" controls preload="metadata"></video>
           <div class="stats" id="stats"></div>
+          <div id="warnings"></div>
           <div class="downloads" id="downloads"></div>
           <label class="lbl">Título, descripción con capítulos y etiquetas</label>
           <textarea id="ytText" readonly></textarea>
@@ -234,7 +237,7 @@
 <script>
 const $ = (id) => document.getElementById(id);
 const OPTS = ["language","subtitles","creator_name","whisper_model","remove_fillers","zoom_cuts","hook","chapter_cards",
-              "transitions","denoise","color","music_volume_db","min_silence","keep_pause","zoom_level","quality"];
+              "transitions","denoise","color","motion","cta","music_volume_db","min_silence","keep_pause","zoom_level","quality"];
 let tab = "link", videoFile = null, musicFile = null, current = null, stages = [], poll = null;
 
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -371,6 +374,7 @@ async function showResult(j) {
     <div class="stat"><b>${fmtTime(rep.duracion_original || 0)} → ${fmtTime(rep.duracion_final || 0)}</b><span>duración</span></div>
     <div class="stat"><b>${rep.cortes ?? "–"}</b><span>cortes</span></div>
     <div class="stat"><b>${rep.muletillas ?? 0}</b><span>muletillas fuera</span></div>`;
+  $("warnings").innerHTML = (rep.avisos || []).map(w => `<p class="err" style="margin:0 0 10px">⚠ ${esc(w)}</p>`).join("");
   const names = { "video_editado.mp4": "⬇ Video editado", "subtitulos.srt": "Subtítulos .srt", "miniatura.jpg": "Miniatura", "youtube.txt": "Textos .txt" };
   $("downloads").innerHTML = j.outputs.filter(o => names[o.name]).map(o =>
     `<a class="btn ghost" href="${base}${o.name}?descargar=true">${names[o.name]} <span class="muted">${fmtSize(o.size)}</span></a>`).join("");

@@ -11,10 +11,12 @@ Está pensado para videos de 10 minutos a varias horas, como tu grabación de 45
 | ✂️ Corte de silencios | Detecta las pausas largas y las quita, dejando un pequeño respiro para que no suene robótico. |
 | 🗣️ Fuera muletillas | Encuentra «eh», «ehm» y «mmm» en la transcripción y los recorta. |
 | 🔍 Zoom en los cortes | Alterna plano normal y acercado (112 %) para disimular los saltos, como si hubiera dos cámaras. |
+| 🎥 Movimiento de cámara | Acercamiento lento dentro de cada toma y un «golpe» de zoom suave cuando dices una palabra clave (como mucho uno cada 6 s). |
+| 🔔 Botón «Suscríbete» | Animado, con sonido «pop», hacia el primer tercio del video (sin chocar con las tarjetas de capítulo). |
 | 🎣 Gancho al inicio *(IA)* | Claude elige el momento más potente (12–30 s) y lo pone como **avance** al principio. |
 | 📚 Capítulos *(IA)* | Detecta los temas, muestra una tarjeta animada «CAPÍTULO N» y mete los capítulos en el MP4 y en la descripción. |
 | ✨ Transiciones | Destello y *whoosh* solo entre capítulos y después del avance. Lo demás son cortes directos, como en la edición profesional. |
-| 💬 Subtítulos | Animados, con la palabra que se está diciendo en amarillo y las palabras clave en verde. También se pueden elegir clásicos. Además genera el `.srt` para subirlo a YouTube. |
+| 💬 Subtítulos | Animados (en minúsculas o en MAYÚSCULAS), con la palabra que se está diciendo en amarillo y un pequeño «pop», y las palabras clave en verde (sin IA se detectan solas: números y palabras que repites). También hay clásicos. Se adaptan a videos verticales y horizontales. Además genera el `.srt` para subirlo a YouTube. |
 | 🏷️ Rótulo | Tu nombre o el de tu canal en la parte inferior al empezar. |
 | 🎙️ Audio | Reducción de ruido, ecualizador y compresor. Música de fondo opcional que **baja sola cuando hablas**. Volumen final a **-14 LUFS**, el estándar de YouTube. |
 | 🎨 Color | Un poco más de contraste, saturación y nitidez. |

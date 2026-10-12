@@ -76,12 +76,21 @@ def whoosh(duration: float = 0.7, seed: int = 7) -> np.ndarray:
     return np.stack([out * np.sqrt(1 - pan), out * np.sqrt(pan)], axis=1) * 32767
 
 
+def pop(duration: float = 0.09) -> np.ndarray:
+    """'Pop' corto para los botones y tarjetas: tono que cae de 900 a 250 Hz."""
+    n = int(SR * duration)
+    x = np.arange(n, dtype=np.float32) / SR
+    freq = 900 * (250 / 900) ** (x / duration)
+    phase = 2 * np.pi * np.cumsum(freq) / SR
+    tone = np.sin(phase) * np.exp(-x * 45) * 0.28
+    return np.stack([tone, tone], axis=1).astype(np.float32) * 32767
+
+
 def mix(voice_wav: Path, out_path: Path, whooshes: list[float], music_wav: Path | None,
-        music_db: float) -> None:
-    """Voz + whooshes + música (que baja sola cuando hablas y sube un poco en las pausas)."""
-    fx = whoosh()
-    fx_offset = int(len(fx) * 0.45)
-    fx_starts = [int(t * SR) - fx_offset for t in whooshes]
+        music_db: float, pops: list[float] = ()) -> None:
+    """Voz + efectos (whoosh, pop) + música (que baja sola cuando hablas y sube un poco en las pausas)."""
+    wh, pp = whoosh(), pop()
+    effects = [(int(t * SR) - int(len(wh) * 0.45), wh) for t in whooshes] + [(int(t * SR), pp) for t in pops]
 
     base = 10 ** (music_db / 20)
     lifted = 10 ** ((music_db + 6) / 20)
@@ -97,7 +106,7 @@ def mix(voice_wav: Path, out_path: Path, whooshes: list[float], music_wav: Path 
             v = np.frombuffer(voice.readframes(n), np.int16).reshape(-1, CH).astype(np.float32)
             out = v.copy()
 
-            for s in fx_starts:
+            for s, fx in effects:
                 a, b = max(s, pos), min(s + len(fx), pos + n)
                 if a < b:
                     out[a - pos:b - pos] += fx[a - s:b - s]

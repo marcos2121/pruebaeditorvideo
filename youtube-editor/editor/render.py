@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Callable
 
 from .media import FFmpegError, MediaInfo, Runner, filter_escape, filter_script_args, font_file
-from .plan import Segment, frame_select_expr, time_enable_expr
+from .plan import Segment, frame_select_expr
 
 PRESETS = {"alta": ("medium", "18"), "rapida": ("veryfast", "20")}
 LOUDNESS = "I=-14:TP=-1.5:LRA=11"  # estándar de YouTube
@@ -83,8 +83,7 @@ def render_main(
     teaser: Path | None,
     audio_wav: Path,
     ass: Path | None,
-    zooms: list[tuple[float, float]],
-    zoom_level: float,
+    zoom: str,
     color: bool,
     quality: str,
     chapters_file: Path | None,
@@ -113,11 +112,10 @@ def render_main(
         f"[{main_idx}:v]setpts=PTS-{float(info.align):.6f}/TB,fps={info.fps}:start_time=0,"
         f"select='{frame_select_expr(segments)}',setpts=N/FRAME_RATE/TB,scale={W}:{H},setsar=1[m0]")
     last = "m0"
-    if zooms:
-        zw, zh = round(W * zoom_level / 2) * 2, round(H * zoom_level / 2) * 2
-        graph.append("[m0]split[ma][mb]")
-        graph.append(f"[mb]scale={zw}:{zh},crop={W}:{H}[mz]")
-        graph.append(f"[ma][mz]overlay=0:0:enable='{time_enable_expr(zooms)}'[m1]")
+    if zoom != "1":
+        # Zoom por fotograma: se agranda la imagen según la expresión y se recorta al centro.
+        graph.append(f"[m0]scale=w='trunc(iw*({zoom})/2)*2':h='trunc(ow*ih/iw/2)*2':eval=frame,"
+                     f"crop={W}:{H}:(iw-{W})/2:(ih-{H})/2,setsar=1[m1]")
         last = "m1"
     if teaser:
         graph.append(f"[tv][{last}]concat=n=2:v=1:a=0[v0]")
@@ -152,26 +150,35 @@ def render_main(
     runner.ffmpeg(args, total=total, on_progress=on_progress, cwd=workdir)
 
 
-def thumbnail(runner: Runner, src: Path, at: float, text: str, workdir: Path, out: Path) -> None:
-    base_vf = ("scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,"
-               "eq=contrast=1.12:saturation=1.3:brightness=0.02")
+def thumbnail(runner: Runner, src: Path, at: float, text: str, workdir: Path, out: Path,
+              vertical: bool = False) -> None:
+    look = "eq=contrast=1.12:saturation=1.3:brightness=0.02"
+    if vertical:
+        # Miniatura 16:9 desde un video vertical: fondo desenfocado y la toma a la derecha.
+        base = ("[0:v]split[a][b];[a]scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,"
+                "boxblur=24:2,eq=brightness=-0.12[bg];"
+                f"[b]scale=-2:720,{look}[fg];[bg][fg]overlay=W-w-70:0")
+    else:
+        base = f"[0:v]scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,{look}"
     args = ["-ss", f"{at:.2f}", "-i", str(src), "-frames:v", "1", "-q:v", "2"]
     try:
-        runner.ffmpeg([*args, "-vf", _thumbnail_filter(base_vf, text, workdir), str(out)], cwd=workdir)
+        runner.ffmpeg([*args, "-filter_complex", base + _thumbnail_text(text, workdir) + "[out]",
+                       "-map", "[out]", str(out)], cwd=workdir)
     except FFmpegError:
         # Algunas compilaciones de ffmpeg no traen el filtro de texto: miniatura sin texto.
-        runner.ffmpeg([*args, "-vf", base_vf, str(out)], cwd=workdir)
+        runner.ffmpeg([*args, "-filter_complex", base + "[out]", "-map", "[out]", str(out)], cwd=workdir)
 
 
-def _thumbnail_filter(vf: str, text: str, workdir: Path) -> str:
+def _thumbnail_text(text: str, workdir: Path) -> str:
     font = font_file("Montserrat")
-    if text and font:
-        # Copiar la fuente evita problemas de rutas con ":" (C:/Windows/...) dentro del filtro.
-        shutil.copyfile(font, workdir / "miniatura_fuente")
-        words = text.upper().split()
-        mid = (len(words) + 1) // 2
-        (workdir / "thumb.txt").write_text(" ".join(words[:mid]) + ("\n" + " ".join(words[mid:]) if words[mid:] else ""), encoding="utf-8")
-        vf += (",drawbox=x=0:y=0:w=iw*0.62:h=ih:color=black@0.45:t=fill"
-               ",drawtext=fontfile=miniatura_fuente:textfile=thumb.txt:fontsize=118:fontcolor=0xFFD400"
-               ":borderw=8:bordercolor=black:line_spacing=6:x=60:y=(h-text_h)/2")
-    return vf
+    if not (text and font):
+        return ""
+    # Copiar la fuente evita problemas de rutas con ":" (C:/Windows/...) dentro del filtro.
+    shutil.copyfile(font, workdir / "miniatura_fuente")
+    words = text.upper().split()
+    mid = (len(words) + 1) // 2
+    lines = " ".join(words[:mid]) + ("\n" + " ".join(words[mid:]) if words[mid:] else "")
+    (workdir / "thumb.txt").write_text(lines, encoding="utf-8")
+    return (",drawbox=x=0:y=0:w=iw*0.62:h=ih:color=black@0.45:t=fill"
+            ",drawtext=fontfile=miniatura_fuente:textfile=thumb.txt:fontsize=118:fontcolor=0xFFD400"
+            ":borderw=8:bordercolor=black:line_spacing=6:x=60:y=(h-text_h)/2")

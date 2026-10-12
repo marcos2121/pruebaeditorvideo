@@ -12,8 +12,8 @@ import numpy as np
 from . import ai, audio, fetch, render
 from .config import FONT, EditOptions
 from .media import Cancelled, Runner, probe, require_ffmpeg
-from .plan import (TimeMap, Word, auto_threshold, build_segments, energy_db, is_filler, speech_regions,
-                   zoom_intervals)
+from .plan import (TimeMap, Word, auto_keywords, auto_threshold, build_segments, emphasis_times, energy_db,
+                   is_filler, motion_expr, speech_regions, zoom_intervals)
 from .subtitles import Card, build_ass, build_srt
 from .transcribe import transcribe, whisper_available
 
@@ -116,6 +116,7 @@ def run(job: JobContext) -> dict:
 
     # 3. Transcripción --------------------------------------------------------
     words: list[Word] = []
+    warnings: list[str] = []
     language = opts.language if opts.language != "auto" else "es"
     speech: list[tuple[float, float]] = []
     if info.has_audio:
@@ -134,8 +135,11 @@ def run(job: JobContext) -> dict:
                 raise
             except Exception as exc:  # sin subtítulos, pero el resto de la edición sigue
                 job.log(f"No se pudo transcribir ({exc.__class__.__name__}: {exc}). Se sigue sin subtítulos.")
+                warnings.append(f"No se pudo transcribir el audio, por eso no hay subtítulos ({exc.__class__.__name__}: "
+                                f"{str(exc)[:160]}).")
         else:
             job.log("faster-whisper no está instalado: se cortan silencios pero no habrá subtítulos.")
+            warnings.append("Falta faster-whisper: no hay subtítulos. Vuelve a ejecutar la instalación.")
     job.progress("transcripcion", 1.0)
 
     # 4. Plan -----------------------------------------------------------------
@@ -163,6 +167,10 @@ def run(job: JobContext) -> dict:
     content = ai.analyze(lines, main.duration, language)
     if content.note:
         job.log(content.note)
+        if ai.ai_available():
+            warnings.append(content.note)
+    if not content.keywords:
+        content.keywords = auto_keywords(words)
     job.progress("plan", 0.7)
 
     teaser_pieces = []
@@ -185,6 +193,16 @@ def run(job: JobContext) -> dict:
             flashes.append(teaser_dur)
         flashes += [c.start for c in cards]
     zooms = zoom_intervals(main, [c.start for c in content.chapters]) if opts.zoom_cuts else []
+    main_words = mapped(main)
+    punches = emphasis_times(main_words, content.keywords) if opts.motion else []
+    zoom = motion_expr(main, zooms, opts.zoom_level, opts.motion, punches)
+    cta_at = None
+    if opts.cta and total >= 45:
+        # tras el gancho y el rótulo, hacia el primer tercio, en un momento sin tarjeta de capítulo
+        cta_at = teaser_dur + max(12.0, min(main.duration * 0.3, 240.0))
+        while any(abs(cta_at - c.start) < 5 for c in cards):
+            cta_at += 6
+    pops = [c.start for c in cards] + ([cta_at] if cta_at is not None else [])
 
     final_words = (mapped(teaser_tm) if teaser_tm else []) + mapped(final_main)
     breaks = [teaser_dur] if teaser_tm else []
@@ -202,7 +220,7 @@ def run(job: JobContext) -> dict:
                        "-af", f"afade=t=in:d=2,afade=t=out:st={max(0.0, total - 4):.3f}:d=4",
                        "-ar", "48000", "-ac", "2", "-c:a", "pcm_s16le", str(music_wav)])
     mixed = work / "mezcla.wav"
-    audio.mix(voice, mixed, flashes, music_wav, opts.music_volume_db)
+    audio.mix(voice, mixed, flashes, music_wav, opts.music_volume_db, pops)
     job.progress("audio", 1.0)
 
     # 6. Render ---------------------------------------------------------------
@@ -214,11 +232,11 @@ def run(job: JobContext) -> dict:
         render.render_teaser(runner, src, info, teaser_pieces, teaser_file)
 
     ass_path = None
-    if (opts.subtitles != "off" and final_words) or cards or flashes or opts.creator_name:
+    if (opts.subtitles != "off" and final_words) or cards or flashes or opts.creator_name or cta_at is not None:
         ass_path = work / "subs.ass"
         ass_path.write_text(build_ass(
             W, H, FONT, final_words, opts.subtitles, content.keywords, breaks, cards, flashes,
-            (0.0, teaser_dur) if teaser_tm else None, opts.creator_name, teaser_dur + 1.0,
+            (0.0, teaser_dur) if teaser_tm else None, opts.creator_name, teaser_dur + 1.0, cta_at,
         ), encoding="utf-8")
 
     chapters_file = None
@@ -228,7 +246,7 @@ def run(job: JobContext) -> dict:
 
     final = outdir / "video_editado.mp4"
     job.log("Renderizando el video final. Tarda más o menos lo que dura el video…")
-    render.render_main(runner, work, src, info, segments, teaser_file, mixed, ass_path, zooms, opts.zoom_level,
+    render.render_main(runner, work, src, info, segments, teaser_file, mixed, ass_path, zoom,
                        opts.color, opts.quality, chapters_file, final, total,
                        lambda f: job.progress("render", f))
     job.progress("render", 1.0)
@@ -241,9 +259,10 @@ def run(job: JobContext) -> dict:
     thumb_src = teaser_pieces[0][0] if teaser_pieces else segments[len(segments) // 3][0]
     try:
         render.thumbnail(runner, src, float(thumb_src / fps) + info.align + 0.5, content.thumbnail_text, work,
-                         outdir / "miniatura.jpg")
+                         outdir / "miniatura.jpg", vertical=H > W)
     except Exception as exc:  # la miniatura es opcional
         job.log(f"No se pudo crear la miniatura: {exc}")
+        warnings.append("No se pudo crear la miniatura.")
 
     for tmp in (clean, analysis, voice, mixed, music_wav, teaser_file):
         if tmp and tmp.exists():
@@ -264,6 +283,8 @@ def run(job: JobContext) -> dict:
         "descripcion": content.description,
         "etiquetas": content.tags,
         "nota": content.note,
+        "golpes_zoom": len(punches),
+        "avisos": warnings,
     }
     (outdir / "informe.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     job.progress("extras", 1.0)

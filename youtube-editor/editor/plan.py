@@ -241,3 +241,59 @@ def frame_select_expr(segments: list[Segment], base: int = 0) -> str:
 
 def time_enable_expr(intervals: list[tuple[float, float]]) -> str:
     return "+".join(f"between(t,{a:.3f},{b:.3f})" for a, b in intervals) or "0"
+
+
+# --------------------------------------------------------------------------- movimiento de cámara
+
+STOPWORDS = set("""
+entonces porque también tambien siempre estamos tenemos cuando nosotros ustedes ahorita todavía todavia bastante
+algunos algunas alguien realmente simplemente haciendo podemos quiero puedes estaba estaban estuve tienen tengo
+digamos decirles vamos vayan hacer hacemos hicimos ninguna ningún ningun nuestro nuestra nuestros cualquier
+través traves mientras después despues primero segundo ejemplo verdad digo dijo cosas cosa mucho muchos muchas
+pueden puede podría podria tenía tenia solamente aquí aqui allí alli donde dónde porqué cómo como
+because really something actually little things people should through before around
+""".split())
+
+
+def auto_keywords(words: list[Word], limit: int = 25) -> list[str]:
+    """Palabras importantes sin IA: números y palabras largas que se repiten."""
+    counts: dict[str, int] = {}
+    shown: dict[str, str] = {}
+    for w in words:
+        n = normalize_word(w.text)
+        if not n or n in STOPWORDS or is_filler(n):
+            continue
+        if any(ch.isdigit() for ch in n) or len(n) >= 6:
+            counts[n] = counts.get(n, 0) + 1
+            shown.setdefault(n, w.text.strip(" ,.;:¿?¡!\"'"))
+    ranked = sorted(counts, key=lambda k: (-(counts[k] + (3 if any(c.isdigit() for c in k) else 0)), k))
+    return [shown[k] for k in ranked if counts[k] >= 2 or any(c.isdigit() for c in k)][:limit]
+
+
+def emphasis_times(words: list[tuple[float, float, str]], keywords: list[str], min_gap: float = 6.0) -> list[float]:
+    """Momentos para un 'golpe' de zoom: cuando se dice una palabra clave (como mucho uno cada `min_gap` s)."""
+    kw = {normalize_word(k) for k in keywords if k}
+    out: list[float] = []
+    for s, _e, text in words:
+        if normalize_word(text) in kw and (not out or s - out[-1] >= min_gap):
+            out.append(s)
+    return out
+
+
+def motion_expr(tm: TimeMap, zooms: list[tuple[float, float]], level: float, push: bool,
+                punches: list[float]) -> str:
+    """Factor de zoom por instante (t en la línea de tiempo principal) para el filtro scale.
+
+    - plano acercado en tramos alternos (disimula los cortes),
+    - acercamiento lento dentro de cada toma (da vida a planos largos),
+    - golpe suave de zoom al decir una palabra clave.
+    """
+    terms = [f"gte(t,{a:.3f})*lt(t,{b:.3f})*{level - 1:.3f}" for a, b in zooms]
+    if push:
+        starts = [s - tm.offset for s in tm.out_starts] + [tm.duration]
+        for a, b in zip(starts, starts[1:]):
+            if b - a >= 1.5:
+                terms.append(f"gte(t,{a:.3f})*lt(t,{b:.3f})*min(0.035,(t-{a:.3f})*0.006)")
+    for p in punches:
+        terms.append(f"between(t,{p:.3f},{p + 0.5:.3f})*0.06*sin(PI*(t-{p:.3f})/0.5)")
+    return "1+" + "+".join(terms) if terms else "1"
