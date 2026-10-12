@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import threading
@@ -36,6 +37,27 @@ def require_ffmpeg() -> None:
     for tool in ("ffmpeg", "ffprobe"):
         if not shutil.which(tool):
             raise FFmpegError(f"No se encontró {tool}. Instálalo y vuelve a intentarlo.")
+
+
+_FFMPEG_MAJOR: int | None = None
+
+
+def ffmpeg_major() -> int:
+    """Versión principal de ffmpeg (0 si no se reconoce, p. ej. compilaciones 'N-xxxx' de git)."""
+    global _FFMPEG_MAJOR
+    if _FFMPEG_MAJOR is None:
+        out = subprocess.run(["ffmpeg", "-hide_banner", "-version"], capture_output=True, text=True).stdout
+        m = re.match(r"ffmpeg version n?(\d+)\.", out)
+        _FFMPEG_MAJOR = int(m.group(1)) if m else 0
+    return _FFMPEG_MAJOR
+
+
+def filter_script_args(path: Path) -> list[str]:
+    """ffmpeg 7+ lee el filtro desde archivo con '-/filter_complex'; las versiones viejas con '-filter_complex_script'."""
+    major = ffmpeg_major()
+    if major >= 7 or major == 0:
+        return ["-/filter_complex", str(path)]
+    return ["-filter_complex_script", str(path)]
 
 
 def _parse_rate(value: str | None) -> Fraction | None:

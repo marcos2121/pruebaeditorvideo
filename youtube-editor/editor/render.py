@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 from typing import Callable
 
-from .media import MediaInfo, Runner, filter_escape, font_file
+from .media import FFmpegError, MediaInfo, Runner, filter_escape, filter_script_args, font_file
 from .plan import Segment, frame_select_expr, time_enable_expr
 
 PRESETS = {"alta": ("medium", "18"), "rapida": ("veryfast", "20")}
@@ -142,7 +142,7 @@ def render_main(
         idx += 1
 
     measured = measure_loudness(runner, audio_wav)
-    args = [*inputs, *meta, "-filter_complex_script", str(expr_file),
+    args = [*inputs, *meta, *filter_script_args(expr_file),
             "-map", "[vout]", "-map", f"{audio_idx}:a", "-af", loudnorm_filter(measured),
             *_x264(quality, info.fps), "-r", str(info.fps),
             "-c:a", "aac", "-b:a", "320k", "-ar", "48000", "-movflags", "+faststart"]
@@ -153,9 +153,18 @@ def render_main(
 
 
 def thumbnail(runner: Runner, src: Path, at: float, text: str, workdir: Path, out: Path) -> None:
+    base_vf = ("scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,"
+               "eq=contrast=1.12:saturation=1.3:brightness=0.02")
+    args = ["-ss", f"{at:.2f}", "-i", str(src), "-frames:v", "1", "-q:v", "2"]
+    try:
+        runner.ffmpeg([*args, "-vf", _thumbnail_filter(base_vf, text, workdir), str(out)], cwd=workdir)
+    except FFmpegError:
+        # Algunas compilaciones de ffmpeg no traen el filtro de texto: miniatura sin texto.
+        runner.ffmpeg([*args, "-vf", base_vf, str(out)], cwd=workdir)
+
+
+def _thumbnail_filter(vf: str, text: str, workdir: Path) -> str:
     font = font_file("Montserrat")
-    vf = ("scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,"
-          "eq=contrast=1.12:saturation=1.3:brightness=0.02")
     if text and font:
         # Copiar la fuente evita problemas de rutas con ":" (C:/Windows/...) dentro del filtro.
         shutil.copyfile(font, workdir / "miniatura_fuente")
@@ -165,4 +174,4 @@ def thumbnail(runner: Runner, src: Path, at: float, text: str, workdir: Path, ou
         vf += (",drawbox=x=0:y=0:w=iw*0.62:h=ih:color=black@0.45:t=fill"
                ",drawtext=fontfile=miniatura_fuente:textfile=thumb.txt:fontsize=118:fontcolor=0xFFD400"
                ":borderw=8:bordercolor=black:line_spacing=6:x=60:y=(h-text_h)/2")
-    runner.ffmpeg(["-ss", f"{at:.2f}", "-i", str(src), "-frames:v", "1", "-vf", vf, "-q:v", "2", str(out)], cwd=workdir)
+    return vf
